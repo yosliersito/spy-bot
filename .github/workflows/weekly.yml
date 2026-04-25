@@ -1,8 +1,7 @@
 name: SPY Weekly Bot
 
 on:
-  schedule:
-    - cron: "0 14 * * 1"  # cada lunes
+  workflow_dispatch:
 
 jobs:
   run-bot:
