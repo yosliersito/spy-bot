@@ -1,3 +1,5 @@
+import yfinance as yf
+import numpy as np
 print("\n=== SPY IRON CONDOR SCANNER (PRO FINAL) ===")
 
 # =========================
