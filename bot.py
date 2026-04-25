@@ -1,6 +1,7 @@
 import yfinance as yf
 import numpy as np
-print("\n=== SPY IRON CONDOR SCANNER (PRO FINAL) ===")
+
+print("\n=== SPY IRON CONDOR SCANNER (PRO FULL SYSTEM) ===")
 
 # =========================
 # DATA
@@ -11,9 +12,10 @@ hist = spy.history(period="1y")
 price = hist["Close"].iloc[-1]
 returns = hist["Close"].pct_change().dropna()
 
+# Volatilidad anualizada
 vol = returns.std() * np.sqrt(252)
 
-# expected weekly move
+# Expected move semanal
 weekly_move = price * (vol / np.sqrt(52))
 
 upper = price + weekly_move
@@ -25,29 +27,42 @@ lower = price - weekly_move
 expiry = spy.options[0]
 chain = spy.option_chain(expiry)
 
-calls = chain.calls
-puts = chain.puts
+calls = chain.calls.copy()
+puts = chain.puts.copy()
 
 # =========================
-# STRIKE SELECTION (ROBUST)
+# FILTRO DE LIQUIDEZ (PRO)
+# =========================
+def filter_liquid(df):
+    df = df.copy()
+    df = df[(df["volume"] > 10) & (df["openInterest"] > 50)]
+    return df
+
+calls = filter_liquid(calls)
+puts = filter_liquid(puts)
+
+# fallback si se vacía
+if len(calls) == 0:
+    calls = spy.option_chain(expiry).calls
+if len(puts) == 0:
+    puts = spy.option_chain(expiry).puts
+
+# =========================
+# SELECCIÓN DE STRIKES (DELTA APPROX)
 # =========================
 def nearest(df, target):
+    df = df.copy()
     return df.iloc[(df["strike"] - target).abs().argsort()[:1]]["strike"].values[0]
 
-# short strikes (sell premium near edges)
 put_short = nearest(puts, lower)
 call_short = nearest(calls, upper)
 
-# long protection wings (defined risk)
 put_long = nearest(puts, lower - weekly_move * 0.7)
 call_long = nearest(calls, upper + weekly_move * 0.7)
 
 # =========================
-# EDGE MODEL
+# RÉGIMEN DE VOLATILIDAD
 # =========================
-position = (price - lower) / (upper - lower)
-
-# volatility regime
 if vol < 0.15:
     regime = "LOW VOL"
 elif vol < 0.22:
@@ -55,30 +70,45 @@ elif vol < 0.22:
 else:
     regime = "HIGH VOL"
 
-# quality score (simple but institutional style)
-score = 0
+# =========================
+# PROBABILIDAD (APROX EDGE MODEL)
+# =========================
+position = (price - lower) / (upper - lower)
 
-# mean reversion center bias
+# probabilidad de éxito aproximada
 if 0.45 <= position <= 0.55:
-    score += 40
+    prob = 0.70
 elif 0.35 <= position <= 0.65:
-    score += 25
+    prob = 0.60
 else:
-    score += 10
+    prob = 0.45
 
-# volatility regime adjustment
+# ajuste por volatilidad
 if regime == "NORMAL VOL":
-    score += 40
+    prob += 0.10
 elif regime == "LOW VOL":
-    score += 25
+    prob += 0.05
 else:
+    prob -= 0.05
+
+prob = min(max(prob, 0), 0.95)
+
+# =========================
+# EXPECTED VALUE (EDGE SIMPLIFICADO)
+# =========================
+credit_est = weekly_move * 0.3
+risk_est = weekly_move * 0.7
+
+ev = (prob * credit_est) - ((1 - prob) * risk_est)
+
+# =========================
+# SCORE FINAL
+# =========================
+score = int(prob * 100)
+
+if ev > 0:
     score += 10
 
-# premium environment proxy
-if weekly_move / price > 0.02:
-    score += 20
-
-# cap
 score = min(score, 100)
 
 # =========================
@@ -94,13 +124,18 @@ print(f"PUT BUY  : {put_long}")
 print(f"CALL SELL: {call_short}")
 print(f"CALL BUY : {call_long}")
 
-print("\n--- RISK ENGINE ---")
+print("\n--- PRO METRICS ---")
 print(f"Expected Move: ±{weekly_move:.2f}")
-print(f"Position Score: {score}/100")
+print(f"Win Probability: {prob*100:.1f}%")
+print(f"Expected Value: {ev:.2f}")
+print(f"Score: {score}/100")
 
-if score >= 80:
-    print("🟢 A+ SETUP (TRADEABLE)")
-elif score >= 60:
-    print("🟡 MARGINAL SETUP")
+# =========================
+# DECISION
+# =========================
+if score >= 80 and ev > 0:
+    print("🟢 A+ TRADE (HIGH EDGE)")
+elif score >= 65:
+    print("🟡 MARGINAL TRADE")
 else:
     print("❌ NO TRADE")
