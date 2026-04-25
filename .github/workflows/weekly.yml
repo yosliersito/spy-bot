@@ -1,0 +1,23 @@
+name: SPY Weekly Bot
+
+on:
+  schedule:
+    - cron: "0 14 * * 1"  # cada lunes
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install yfinance numpy
+
+      - name: Run bot
+        run: python bot.py
