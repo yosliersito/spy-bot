@@ -1,5 +1,6 @@
 import yfinance as yf
 import numpy as np
+import requests
 
 print("\n=== SPY IRON CONDOR SCANNER (PRO FULL SYSTEM) ===")
 
@@ -31,7 +32,7 @@ calls = chain.calls.copy()
 puts = chain.puts.copy()
 
 # =========================
-# FILTRO DE LIQUIDEZ (PRO)
+# FILTRO DE LIQUIDEZ
 # =========================
 def filter_liquid(df):
     df = df.copy()
@@ -41,17 +42,15 @@ def filter_liquid(df):
 calls = filter_liquid(calls)
 puts = filter_liquid(puts)
 
-# fallback si se vacía
 if len(calls) == 0:
     calls = spy.option_chain(expiry).calls
 if len(puts) == 0:
     puts = spy.option_chain(expiry).puts
 
 # =========================
-# SELECCIÓN DE STRIKES (DELTA APPROX)
+# STRIKE SELECTION
 # =========================
 def nearest(df, target):
-    df = df.copy()
     return df.iloc[(df["strike"] - target).abs().argsort()[:1]]["strike"].values[0]
 
 put_short = nearest(puts, lower)
@@ -61,7 +60,7 @@ put_long = nearest(puts, lower - weekly_move * 0.7)
 call_long = nearest(calls, upper + weekly_move * 0.7)
 
 # =========================
-# RÉGIMEN DE VOLATILIDAD
+# REGIME
 # =========================
 if vol < 0.15:
     regime = "LOW VOL"
@@ -71,11 +70,10 @@ else:
     regime = "HIGH VOL"
 
 # =========================
-# PROBABILIDAD (APROX EDGE MODEL)
+# EDGE MODEL
 # =========================
 position = (price - lower) / (upper - lower)
 
-# probabilidad de éxito aproximada
 if 0.45 <= position <= 0.55:
     prob = 0.70
 elif 0.35 <= position <= 0.65:
@@ -83,7 +81,6 @@ elif 0.35 <= position <= 0.65:
 else:
     prob = 0.45
 
-# ajuste por volatilidad
 if regime == "NORMAL VOL":
     prob += 0.10
 elif regime == "LOW VOL":
@@ -93,17 +90,11 @@ else:
 
 prob = min(max(prob, 0), 0.95)
 
-# =========================
-# EXPECTED VALUE (EDGE SIMPLIFICADO)
-# =========================
 credit_est = weekly_move * 0.3
 risk_est = weekly_move * 0.7
 
 ev = (prob * credit_est) - ((1 - prob) * risk_est)
 
-# =========================
-# SCORE FINAL
-# =========================
 score = int(prob * 100)
 
 if ev > 0:
@@ -138,12 +129,11 @@ if score >= 80 and ev > 0:
 elif score >= 65:
     print("🟡 MARGINAL TRADE")
 else:
-    
-    import requests
-    TOKEN = "..."
-CHAT_ID = "..."
+    print("❌ NO TRADE")
 
-(signal, message, url, requests.post...)
+# =========================
+# TELEGRAM ALERT (FINAL)
+# =========================
 
 TOKEN = "8744183049:AAFoCRK_kNG6u80vRPK-JP8zEAGSXWinGaQ"
 CHAT_ID = "5859894972"
@@ -171,3 +161,5 @@ requests.post(url, data={
     "chat_id": CHAT_ID,
     "text": message
 })
+
+print("Telegram sent ✔")
