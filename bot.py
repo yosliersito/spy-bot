@@ -138,8 +138,12 @@ if score >= 80 and ev > 0:
 elif score >= 65:
     print("🟡 MARGINAL TRADE")
 else:
-    print("❌ NO TRADE")
+    
     import requests
+    TOKEN = "..."
+CHAT_ID = "..."
+
+(signal, message, url, requests.post...)
 
 TOKEN = "8744183049:AAFoCRK_kNG6u80vRPK-JP8zEAGSXWinGaQ"
 CHAT_ID = "5859894972"
