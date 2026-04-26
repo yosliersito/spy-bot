@@ -139,3 +139,31 @@ elif score >= 65:
     print("🟡 MARGINAL TRADE")
 else:
     print("❌ NO TRADE")
+    import requests
+
+TOKEN = "8744183049:AAFoCRK_kNG6u80vRPK-JP8zEAGSXWinGaQ"
+CHAT_ID = "5859894972"
+
+signal = "🟢 A+ TRADE" if score >= 80 else "🟡 MARGINAL" if score >= 60 else "❌ NO TRADE"
+
+message = f"""
+SPY IRON CONDOR REPORT
+
+Price: {price:.2f}
+Volatility: {vol:.4f}
+Regime: {regime}
+
+PUT SELL: {put_short}
+CALL SELL: {call_short}
+
+Expected Move: ±{weekly_move:.2f}
+Score: {score}/100
+Signal: {signal}
+"""
+
+url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+
+requests.post(url, data={
+    "chat_id": CHAT_ID,
+    "text": message
+})
